@@ -1,0 +1,216 @@
+---
+title: "Assignment-3"
+format: html
+editor: visual
+---
+
+# Setting up simulation
+
+```{r}
+library(tidyverse)
+
+set.seed(1)
+population <- rnorm(1000000, mean = 1.5, sd = 3)
+
+
+samp1 <- data.frame(y = sample(population, 8, replace = FALSE))
+
+samp2 <- data.frame(y = sample(population, 40, replace = FALSE))
+
+
+m1 <- lm(y ~ 1, data = samp1)
+m2 <- lm(y ~ 1, data = samp2)
+
+summary(m1)
+summary(m2)
+
+```
+
+### 1. Forklar
+
+I M1 finner en et estimat på 1.840. SE er 1.1251. T-verdi er 1.47. Og P-verdi er 1.185.
+
+I M2 finner en et estimat på 1.5642. SE er 0.4774. T-verdi er 3.276. Og P-verid er 0.00221.
+
+Alle disse verdiene er avhengig av hverandre, hvor T-verdi kan beregnes som forholdet mellom estimatet og SE. P-verdien er avhengig av T-verdien. P-verdien forteller oss hvor stor sannsynlighet det er for å finne det gitte resultatet. Gitt at 0 hypotesen er sann.
+
+I m1 ser vi en relativ lav T-verdi, som gir oss en høy P-verdi.
+
+I m2 ser vi en relativ høy T-verdi, som gir oss en lav P-verdi.
+
+Vi kan også se at SE er lavere i m2 sammenlignet med m1. Dette bidrar til å forklare sammenhengen til T-verdi og P-verdi.
+
+### 2. Diskuter
+
+En viktig faktor for de ulike resultatene i m1 og m2 er størrelsen på populasjonen. M1 har en populasjon på 8, mens m2 har en populasjon på 40. Siden m2 har en betydelig større populasjon enn m1 vil m2 ha en større statistisk styrke. Årsaken til det er at et høyere antall observasjoner bidrar til å påvirke gjennomsnittet. Dette kan vi også se i SE hvor m1 har et høyere avvik enn m2. Det vil bidra til påvirkningen av både P- og T-verdi i de ulike studiene.
+
+### 3. T-distrubisjon
+
+Det skyggede området forteller oss hvor langt eller tett inntil gjennomsnittet er i den gitte studien.
+
+```{r}
+results_8 <- data.frame(estimate = rep(NA, 1000), 
+                      se = rep(NA, 1000), 
+                      pval = rep(NA, 1000), 
+                      n = 8)  
+
+results_40 <- data.frame(estimate = rep(NA, 1000), 
+                      se = rep(NA, 1000), 
+                      pval = rep(NA, 1000), 
+                      n = 40)
+
+
+
+for(i in 1:1000) {
+  
+  
+  samp1 <- data.frame(y = sample(population, 8, replace = FALSE))
+  samp2 <- data.frame(y = sample(population, 40, replace = FALSE))
+
+ 
+  m1 <- lm(y ~ 1, data = samp1)
+  m2 <- lm(y ~ 1, data = samp2)
+  
+  
+  results_8[i, 1] <- coef(summary(m1))[1, 1]
+  results_8[i, 2] <- coef(summary(m1))[1, 2]
+  results_8[i, 3] <- coef(summary(m1))[1, 4]
+
+  results_40[i, 1] <- coef(summary(m2))[1, 1]
+  results_40[i, 2] <- coef(summary(m2))[1, 2]
+  results_40[i, 3] <- coef(summary(m2))[1, 4]
+  
+  
+}
+
+results <- bind_rows(results_8, results_40)
+```
+
+### 4. Kalkuler
+
+I koden under ser vi at estimat av standardavviket og gjennomsnitt av de to studiene.
+
+M1:
+
+Standardavvik: 1.0708432
+
+Gjennomsnitt: 1.0213745
+
+M2:
+
+Standardavvik: 0.4838475
+
+Gjennomsnitt: 0.4696954
+
+Som tallene tilsier ser vi at både gjennomsnitt og standardavvik er relativt like i for de to ulike studiene. Hvis studiene hadde blitt gjennomført mange nok ganger ville det medført at standardfeilen og standardavviket til utvalget hadde jevnt seg ut. Som betyr at det er et representativt utvalg. Standardfeilen er påvirket av utvalgsstørrelsen.
+
+```{r}
+results %>%
+  group_by(n) %>%
+  summarise(sd(estimate), mean(se)) %>%
+  
+ print()
+
+```
+
+### 5. Histogram
+
+```{r}
+results %>%
+  ggplot(aes(pval)) + 
+  geom_histogram() +
+  facet_wrap(~ n)
+```
+
+Histogrammene viser at det kan være en større sannsynlighet for å finne antatte ekstreme resultater i m2 kontra m1.
+
+### 6. Statistisk signifikans
+
+```{r}
+results %>%
+  filter(pval < 0.05) %>%
+  group_by(n) %>%
+  summarise(sig_results = n()/1000)
+
+```
+
+M1 har 22,7% som tilsier signifikant effekt, mens m2 har 86,5% som tilsier signifikant effekt.
+
+### 7. PWR-pakke
+
+```{r}
+library(pwr)
+pwr40 <- pwr.t.test(n = 40, sig.level = 0.05, d = 1.5/3, type = "one.sample") %>%
+  
+  print()
+pwr8 <- pwr.t.test(n = 8, sig.level = 0.05, d = 1.5/3, type = "one.sample") %>%
+print()
+```
+
+Tidligere simuleringer tilsier at desto høyere utvalgsstørrelsen er, vil statistisk power også være høyere. Kraften til T-test med én prøve på utvalgsstørelse på 40 gir statistisk power gir 87%, mens utvalgsstørelse på 8 gir kun 23%.
+
+### 8. Falsk positiv
+
+```{r}
+population <- rnorm(1000000, mean = 0, sd = 3)
+
+
+results_8 <- data.frame(estimate = rep(NA, 1000), 
+                      se = rep(NA, 1000), 
+                      pval = rep(NA, 1000), 
+                      n = 8)  
+
+results_40 <- data.frame(estimate = rep(NA, 1000), 
+                      se = rep(NA, 1000), 
+                      pval = rep(NA, 1000), 
+                      n = 40)
+
+
+
+for(i in 1:1000) {
+  
+
+  samp1 <- data.frame(y = sample(population, 8, replace = FALSE))
+  samp2 <- data.frame(y = sample(population, 40, replace = FALSE))
+
+
+  m1 <- lm(y ~ 1, data = samp1)
+  m2 <- lm(y ~ 1, data = samp2)
+  
+ 
+  results_8[i, 1] <- coef(summary(m1))[1, 1]
+  results_8[i, 2] <- coef(summary(m1))[1, 2]
+  results_8[i, 3] <- coef(summary(m1))[1, 4]
+
+  results_40[i, 1] <- coef(summary(m2))[1, 1]
+  results_40[i, 2] <- coef(summary(m2))[1, 2]
+  results_40[i, 3] <- coef(summary(m2))[1, 4]
+  
+  
+}
+
+results_null <- bind_rows(results_8, results_40)
+
+results_null %>%
+  ggplot(aes(pval)) + 
+  geom_histogram() +
+  facet_wrap(~ n)
+```
+
+```{r}
+#|echo: false
+#|message: false
+
+set.seed(2)
+results_null %>%
+  filter(pval < 0.05) %>%
+  group_by(n) %>%
+  summarise(sig_results = n()/1000)
+```
+
+I m1 ser vi at 4,6% av studiene gir oss et falskt positivt resultat, mens i utvalget i m2 vil 4,8% av studiene gi oss et falskt positivt resultat.
+
+|     |
+|-----|
+|     |
+|     |
